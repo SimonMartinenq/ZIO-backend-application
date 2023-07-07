@@ -11,36 +11,85 @@ import zio.schema.syntax._
 object MlbApi extends ZIOAppDefault {
 
   case class Game(
-    date: String,
-    season: Int, 
-    homeTeam: String,
-    awayTeam: String,
-    homeScore: Int,
-    awayScore: Int, 
-    eloProbHome: Double,
-    eloProbAway: Double
+      date: String,
+      season: Int,
+      homeTeam: String,
+      awayTeam: String,
+      homeScore: Int,
+      awayScore: Int,
+      eloProbHome: Double,
+      eloProbAway: Double
   )
 
-  object Game{
+  object Game {
     import Schema.Field
 
     implicit val schema: Schema[Game] =
-    Schema.CaseClass8[String, Int, String, String, Int, Int, Double, Double, Game](
-      TypeId.parse(classOf[Game].getName),
-      Field("date", Schema[String], get0 = _.date, set0 = (x, v) => x.copy(date = v)),
-      Field("season", Schema[Int], get0 = _.season, set0 = (x, v) => x.copy(season = v)),
-      Field("homeTeam", Schema[String], get0 = _.homeTeam, set0 = (x, v) => x.copy(homeTeam = v)),
-      Field("awayTeam", Schema[String], get0 = _.awayTeam, set0 = (x, v) => x.copy(awayTeam = v)),
-      Field("homeScore", Schema[Int], get0 = _.homeScore, set0 = (x, v) => x.copy(homeScore = v)),
-      Field("awayScore", Schema[Int], get0 = _.awayScore, set0 = (x, v) => x.copy(awayScore = v)),
-      Field("eloProbHome", Schema[Double], get0 = _.eloProbHome, set0 = (x, v) => x.copy(eloProbHome = v)),
-      Field("eloProbAway", Schema[Double], get0 = _.eloProbAway, set0 = (x, v) => x.copy(eloProbAway = v)),
-      Game.apply
-    )
+      Schema.CaseClass8[
+        String,
+        Int,
+        String,
+        String,
+        Int,
+        Int,
+        Double,
+        Double,
+        Game
+      ](
+        TypeId.parse(classOf[Game].getName),
+        Field(
+          "date",
+          Schema[String],
+          get0 = _.date,
+          set0 = (x, v) => x.copy(date = v)
+        ),
+        Field(
+          "season",
+          Schema[Int],
+          get0 = _.season,
+          set0 = (x, v) => x.copy(season = v)
+        ),
+        Field(
+          "homeTeam",
+          Schema[String],
+          get0 = _.homeTeam,
+          set0 = (x, v) => x.copy(homeTeam = v)
+        ),
+        Field(
+          "awayTeam",
+          Schema[String],
+          get0 = _.awayTeam,
+          set0 = (x, v) => x.copy(awayTeam = v)
+        ),
+        Field(
+          "homeScore",
+          Schema[Int],
+          get0 = _.homeScore,
+          set0 = (x, v) => x.copy(homeScore = v)
+        ),
+        Field(
+          "awayScore",
+          Schema[Int],
+          get0 = _.awayScore,
+          set0 = (x, v) => x.copy(awayScore = v)
+        ),
+        Field(
+          "eloProbHome",
+          Schema[Double],
+          get0 = _.eloProbHome,
+          set0 = (x, v) => x.copy(eloProbHome = v)
+        ),
+        Field(
+          "eloProbAway",
+          Schema[Double],
+          get0 = _.eloProbAway,
+          set0 = (x, v) => x.copy(eloProbAway = v)
+        ),
+        Game.apply
+      )
     implicit val jdbcDecoder: JdbcDecoder[Game] = JdbcDecoder.fromSchema
     implicit val jdbcEncoder: JdbcEncoder[Game] = JdbcEncoder.fromSchema
   }
-
 
   val createZIOPoolConfig: ULayer[ZConnectionPoolConfig] =
     ZLayer.succeed(ZConnectionPoolConfig.default)
@@ -50,7 +99,8 @@ object MlbApi extends ZIOAppDefault {
     "password" -> "postgres"
   )
 
-  val connectionPool: ZLayer[ZConnectionPoolConfig, Throwable, ZConnectionPool] =
+  val connectionPool
+      : ZLayer[ZConnectionPoolConfig, Throwable, ZConnectionPool] =
     ZConnectionPool.h2mem(
       database = "testdb",
       props = properties
@@ -58,7 +108,7 @@ object MlbApi extends ZIOAppDefault {
 
   val create: ZIO[ZConnectionPool, Throwable, Unit] = transaction {
     execute(
-     sql"""CREATE TABLE IF NOT EXISTS games(
+      sql"""CREATE TABLE IF NOT EXISTS games(
        date VARCHAR(255) NOT NULL,
         season INT NOT NULL, 
         homeTeam VARCHAR(255) NOT NULL,
@@ -71,31 +121,32 @@ object MlbApi extends ZIOAppDefault {
     )
   }
 
-  def insertRows(games: List[Game]): ZIO[ZConnectionPool, Throwable, UpdateResult] = {
-   transaction {
-     insert(
-       sql"INSERT INTO games(date, season, homeTeam, awayTeam, homeScore, awayScore, eloProbHome, eloProbAway)"
-         .values(games)
-     )
-   }
-   }
+  def insertRows(
+      games: List[Game]
+  ): ZIO[ZConnectionPool, Throwable, UpdateResult] = {
+    transaction {
+      insert(
+        sql"INSERT INTO games(date, season, homeTeam, awayTeam, homeScore, awayScore, eloProbHome, eloProbAway)"
+          .values(games)
+      )
+    }
+  }
 
-   val select: ZIO[ZConnectionPool, Throwable, Option[Game]] = transaction {
-   selectOne(
-     sql"SELECT date, season, homeTeam, awayTeam, homeScore, awayScore, eloProbHome, eloProbAway FROM games"
+  val select: ZIO[ZConnectionPool, Throwable, Option[Game]] = transaction {
+    selectOne(
+      sql"SELECT date, season, homeTeam, awayTeam, homeScore, awayScore, eloProbHome, eloProbAway FROM games"
         .as[Game]
     )
-   }
-
+  }
 
   val endpoints: App[Any] =
     Http
-      //collectZIO
+      // collectZIO
       .collect[Request] {
-       // Init si on fait pas dans le run
+        // Init si on fait pas dans le run
         // case Method.GET -> Root / "init" => ???
 
-        //Faire une requete SQL
+        // Faire une requete SQL
         case Method.GET -> Root / "games" => ???
 
         // case Method.GET -> Root / "predict" / "game" / gameId => ???
@@ -105,7 +156,7 @@ object MlbApi extends ZIOAppDefault {
   val app: ZIO[ZConnectionPool & Server, Throwable, Unit] = for {
     conn <- create
     source <- ZIO.succeed(CSVReader.open(("src/CsvFiles/mlb_elo_latest.csv")))
-    //Stream = List()
+    // Stream = List()
     stream <- ZStream
       .fromIterator[Seq[String]](source.iterator)
       .map[Option[Game]] { values =>
@@ -123,7 +174,18 @@ object MlbApi extends ZIOAppDefault {
         // Création d'un objet Game avec les valeurs extraites
         (homeScore, awayScore) match
           case (Some(homeScore), Some(awayScore)) =>
-            Some(Game(date, season, homeTeam, awayTeam, homeScore, awayScore, eloProbHome, eloProbAway))
+            Some(
+              Game(
+                date,
+                season,
+                homeTeam,
+                awayTeam,
+                homeScore,
+                awayScore,
+                eloProbHome,
+                eloProbAway
+              )
+            )
           case _ => None
       }
       .collectSome
@@ -133,7 +195,7 @@ object MlbApi extends ZIOAppDefault {
     res <- select
     _ <- Console.printLine(res)
     _ <- Server.serve(endpoints)
-} yield ()
+  } yield ()
 
   override def run: ZIO[Any, Throwable, Unit] =
     app.provide(createZIOPoolConfig >>> connectionPool, Server.default)
