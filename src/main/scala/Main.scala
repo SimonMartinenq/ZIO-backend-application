@@ -59,6 +59,21 @@ object MlbApi extends ZIOAppDefault {
     app.provide(createZIOPoolConfig >>> connectionPool, Server.default)
 }
 
+
+object ApiService {
+
+  import zio.json.EncoderOps
+  import Game._
+
+  def countResponse(count: Option[Int]): Response = {
+    count match
+      case Some(c) => Response.text(s"$c game(s) in historical data").withStatus(Status.Ok)
+      case None => Response.text("No game in historical data").withStatus(Status.NotFound)
+  }
+}
+
+
+
 object DataService {
 
   import Game._ 
