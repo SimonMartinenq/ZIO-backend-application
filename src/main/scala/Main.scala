@@ -100,12 +100,18 @@ object DataService {
     }
    }
 
-   val select: ZIO[ZConnectionPool, Throwable, Option[Game]] = transaction {
+  val select: ZIO[ZConnectionPool, Throwable, Option[Game]] = transaction {
    selectOne(
      sql"SELECT date, season, homeTeam, awayTeam, homeScore, awayScore, eloProbHome, eloProbAway FROM games"
         .as[Game]
     )
-   }
+  }
+
+   val count: ZIO[ZConnectionPool, Throwable, Option[Int]] = transaction {
+    selectOne(
+      sql"SELECT COUNT(*) FROM games".as[Int]
+    )
+  }
 }
 
 //Definition of a Game
