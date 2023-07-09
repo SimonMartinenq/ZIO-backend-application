@@ -9,18 +9,30 @@ import zio.schema.syntax._
 object MlbApi extends ZIOAppDefault {
 
   import DataService._
+  import ApiService._
+
+  val static: App[Any] = Http.collect[Request] {
+    case Method.GET -> Root / "text" => Response.text("Hello MLB Fans!")
+    case Method.GET -> Root / "json" => Response.json("""{"greetings": "Hello MLB Fans!"}""")
+  }.withDefaultErrorResponse
 
   val endpoints: App[ZConnectionPool] = Http.collectZIO[Request] {
-       // Init si on fait pas dans le run
-        case Method.GET -> Root / "init" => 
-          ZIO.succeed(Response.text("Not Implemented").withStatus(Status.NotImplemented))
 
-        //Faire une requete SQL
-        case Method.GET -> Root / "games" => ???
+    case Method.GET -> Root / "init" => 
+      ZIO.succeed(Response.text("Not Implemented").withStatus(Status.NotImplemented))
 
-        // case Method.GET -> Root / "predict" / "game" / gameId => ???
-      }
-      .withDefaultErrorResponse
+    case Method.GET -> Root / "games" / "count" =>
+      for {
+        count: Option[Int] <- count
+        res: Response = countResponse(count)
+    } yield res
+
+    //case Method.GET -> Root / "games" => ???
+
+    // case Method.GET -> Root / "predict" / "game" / gameId => ???
+     case _ =>
+      ZIO.succeed(Response.text("Not Found").withStatus(Status.NotFound))
+  }.withDefaultErrorResponse
 
   val app: ZIO[ZConnectionPool & Server, Throwable, Unit] = for {
     conn <- create
@@ -52,7 +64,7 @@ object MlbApi extends ZIOAppDefault {
     _ <- ZIO.succeed(source.close())
     res <- select
     _ <- Console.printLine(res)
-    _ <- Server.serve(endpoints)
+    _ <- Server.serve[ZConnectionPool](static ++ endpoints)
 } yield ()
 
   override def run: ZIO[Any, Throwable, Unit] =
