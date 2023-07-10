@@ -51,8 +51,14 @@ object MlbApi extends ZIOAppDefault {
         predAway: Option[Double] <- getProbAway(HomeTeam(homeTeam), AwayTeam(awayTeam))
         res: Response = predictResponse(homeTeam, predHome, awayTeam, predAway)
       } yield res
+    
+    case Method.GET -> Root / "game" / "latest" / homeTeam / awayTeam =>
+      for {
+        game: Option[Game] <- latest(HomeTeam(homeTeam), AwayTeam(awayTeam))
+        res: Response = latestGameResponse(game)
+      } yield res
 
-     case _ =>
+    case _ =>
       ZIO.succeed(Response.text("Not Found").withStatus(Status.NotFound))
   }.withDefaultErrorResponse
 
@@ -107,6 +113,12 @@ object ApiService {
       case (None, Some(a)) => Response.text(s"Prediction for ${homeTeam} not found \nPrediction for ${awayTeam} is $a").withStatus(Status.Ok)
       case (Some(d), None) => Response.text(s"Prediction for ${homeTeam} is $d \nPrediction for ${awayTeam} not found").withStatus(Status.Ok)
       case (None, None) => Response.text(s"Prediction for ${homeTeam} not found \nPrediction for ${awayTeam} not found").withStatus(Status.Ok)
+
+  def latestGameResponse(game: Option[Game]): Response = {
+    println(game)
+    game match
+      case Some(game) => Response.text(s"$game").withStatus(Status.Ok)
+      case None => Response.text("No game found in historical data").withStatus(Status.NotFound)
   }
 }
 
@@ -178,6 +190,11 @@ object DataService {
     transaction {
       selectOne(
         sql"SELECT eloProbAway FROM games WHERE homeTeam = ${HomeTeam.unapply(homeTeam)} AND awayTeam = ${AwayTeam.unapply(awayTeam)} ORDER BY date DESC LIMIT 1".as[Double]
+
+  def latest(homeTeam: HomeTeam, awayTeam: AwayTeam): ZIO[ZConnectionPool, Throwable, Option[Game]] = {
+    transaction {
+      selectOne(
+        sql"SELECT date, season, homeTeam, awayTeam, homeScore, awayScore, eloProbHome, eloProbAway FROM games WHERE homeTeam = ${HomeTeam.unapply(homeTeam)} AND awayTeam = ${AwayTeam.unapply(awayTeam)} ORDER BY date DESC LIMIT 1".as[Game]
       )
     }
   }
