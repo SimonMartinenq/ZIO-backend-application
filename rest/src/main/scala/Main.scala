@@ -41,8 +41,14 @@ object MlbApi extends ZIOAppDefault {
 
     //case Method.GET -> Root / "games" => ???
 
-    // case Method.GET -> Root / "predict" / "game" / gameId => ???
-    
+    // case Method.GET -> Root / "predict" / "game" / TeamName => ???
+
+    case Method.GET -> Root / "games" / teamName  =>
+      for {
+        games: List[Game] <- lastTwentyGames(HomeTeam(teamName), AwayTeam(teamName))
+        res: Response = latestTwentyGamesResponse(games)
+      } yield res
+
     case Method.GET -> Root / "game" / "latest" / homeTeam / awayTeam =>
       for {
         game: Option[Game] <- latest(HomeTeam(homeTeam), AwayTeam(awayTeam))
@@ -104,9 +110,15 @@ object ApiService {
       case Some(game) => Response.text(s"$game").withStatus(Status.Ok)
       case None => Response.text("No game found in historical data").withStatus(Status.NotFound)
   }
+
+  def latestTwentyGamesResponse(games: List[Game]): Response = {
+  games match {
+    case Nil => Response.text("No games found in historical data").withStatus(Status.NotFound)
+    case _ =>
+      Response.text(s"${games.mkString("\n")}").withStatus(Status.Ok)
+    }
+  }
 }
-
-
 
 object DataService {
 
@@ -167,6 +179,14 @@ object DataService {
       selectOne(
         sql"SELECT date, season, homeTeam, awayTeam, homeScore, awayScore, eloProbHome, eloProbAway FROM games WHERE homeTeam = ${HomeTeam.unapply(homeTeam)} AND awayTeam = ${AwayTeam.unapply(awayTeam)} ORDER BY date DESC LIMIT 1".as[Game]
       )
+    }
+  }
+
+  def lastTwentyGames(homeTeam: HomeTeam, awayTeam: AwayTeam): ZIO[ZConnectionPool, Throwable, List[Game]] = {
+    transaction {
+      selectAll(
+        sql"SELECT date, season, homeTeam, awayTeam, homeScore, awayScore, eloProbHome, eloProbAway FROM games WHERE homeTeam = ${HomeTeam.unapply(homeTeam)} OR awayTeam = ${AwayTeam.unapply(awayTeam)} ORDER BY date DESC LIMIT 20".as[Game]
+      ).map(_.toList)
     }
   }
 }
