@@ -1,7 +1,7 @@
 To launch the projet : 
     - Go into the terminal and enter the following commands : 
         - sbt
-        - rest projet
+        - project rest
         - compile
         - ~reStart
     Go into an other terminal and enter the following command : 
