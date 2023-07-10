@@ -113,7 +113,7 @@ object ApiService {
       case (None, Some(a)) => Response.text(s"Prediction for ${homeTeam} not found \nPrediction for ${awayTeam} is $a").withStatus(Status.Ok)
       case (Some(d), None) => Response.text(s"Prediction for ${homeTeam} is $d \nPrediction for ${awayTeam} not found").withStatus(Status.Ok)
       case (None, None) => Response.text(s"Prediction for ${homeTeam} not found \nPrediction for ${awayTeam} not found").withStatus(Status.Ok)
-
+  }
   def latestGameResponse(game: Option[Game]): Response = {
     println(game)
     game match
@@ -190,6 +190,9 @@ object DataService {
     transaction {
       selectOne(
         sql"SELECT eloProbAway FROM games WHERE homeTeam = ${HomeTeam.unapply(homeTeam)} AND awayTeam = ${AwayTeam.unapply(awayTeam)} ORDER BY date DESC LIMIT 1".as[Double]
+      )
+    }
+  }
 
   def latest(homeTeam: HomeTeam, awayTeam: AwayTeam): ZIO[ZConnectionPool, Throwable, Option[Game]] = {
     transaction {
@@ -199,3 +202,4 @@ object DataService {
     }
   }
 }
+
