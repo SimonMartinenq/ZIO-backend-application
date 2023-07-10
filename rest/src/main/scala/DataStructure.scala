@@ -88,7 +88,7 @@ object HomeScores {
 
   given CanEqual[HomeScore, HomeScore] = CanEqual.derived
   implicit val homeScoreEncoder: JsonEncoder[HomeScore] = JsonEncoder.int
-  implicit val homeScoreDencoder: JsonDecoder[HomeScore] = JsonDecoder.int
+  implicit val homeScoreDecoder: JsonDecoder[HomeScore] = JsonDecoder.int
 }
 
 object AwayScores {
@@ -108,7 +108,7 @@ object AwayScores {
 
   given CanEqual[AwayScore, AwayScore] = CanEqual.derived
   implicit val awayScoreEncoder: JsonEncoder[AwayScore] = JsonEncoder.int
-  implicit val awayScoreDencoder: JsonDecoder[AwayScore] = JsonDecoder.int
+  implicit val awayScoreDecoder: JsonDecoder[AwayScore] = JsonDecoder.int
 }
 
 object EloProbHomes {
@@ -124,7 +124,7 @@ object EloProbHomes {
 
   given CanEqual[EloProbHome, EloProbHome] = CanEqual.derived
   implicit val eloProbHomeEncoder: JsonEncoder[EloProbHome] = JsonEncoder.double
-  implicit val eloProbHomeDencoder: JsonDecoder[EloProbHome] = JsonDecoder.double
+  implicit val eloProbHomeDecoder: JsonDecoder[EloProbHome] = JsonDecoder.double
 }
 
 object EloProbAways {
@@ -140,7 +140,7 @@ object EloProbAways {
 
   given CanEqual[EloProbAway, EloProbAway] = CanEqual.derived
   implicit val eloProbAwayEncoder: JsonEncoder[EloProbAway] = JsonEncoder.double
-  implicit val eloProbAwayDencoder: JsonDecoder[EloProbAway] = JsonDecoder.double
+  implicit val eloProbAwayDecoder: JsonDecoder[EloProbAway] = JsonDecoder.double
 }
 
 

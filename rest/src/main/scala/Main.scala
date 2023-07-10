@@ -1,20 +1,21 @@
-import zio._
-import zio.jdbc._
-import zio.http._
-import com.github.tototoshi.csv._
+import zio.*
+import zio.jdbc.*
+import zio.http.*
+import com.github.tototoshi.csv.*
 import zio.stream.ZStream
-import zio.schema._
-import zio.schema.syntax._
-
-import Game._
+import zio.schema.*
+import zio.schema.syntax.*
+import Game.*
 import GameDates.*
 import SeasonYears.*
 import HomeTeams.*
 import AwayTeams.*
 import HomeScores.*
 import AwayScores.*
+import DataService.list
 import EloProbHomes.*
 import EloProbAways.*
+
 import java.time.LocalDate
 
 
@@ -39,11 +40,11 @@ object MlbApi extends ZIOAppDefault {
         res: Response = countResponse(count)
     } yield res
 
-    /*case Method.GET -> Root / "games" =>
+    case Method.GET -> Root / "games" =>
       for {
-        list: Option[List[Game]] <- list
+        list: List[Game] <- list
         res: Response = listResponse(list)
-      } yield res*/
+      } yield res
 
     case Method.GET -> Root / "game" / "predict" / homeTeam / awayTeam =>
       for {
@@ -107,6 +108,15 @@ object ApiService {
       case None => Response.text("No game in historical data").withStatus(Status.NotFound)
   }
 
+  def listResponse(list: List[Game]): Response = {
+    Response.text("Entered").withStatus(Status.Ok)
+    list match {
+      case Nil => Response.text("List is empty").withStatus(Status.NotFound)
+      case _ =>
+        Response.text(s"${list.mkString("\n")}").withStatus(Status.Ok)
+    }
+  }
+
   def predictResponse(homeTeam: String, predHome: Option[Double], awayTeam: String, predAway: Option[Double]): Response = {
     (predHome, predAway) match
       case (Some(d), Some(a)) => Response.text(s"Prediction for ${homeTeam} is $d \nPrediction for ${awayTeam} is $a").withStatus(Status.Ok)
@@ -114,6 +124,7 @@ object ApiService {
       case (Some(d), None) => Response.text(s"Prediction for ${homeTeam} is $d \nPrediction for ${awayTeam} not found").withStatus(Status.Ok)
       case (None, None) => Response.text(s"Prediction for ${homeTeam} not found \nPrediction for ${awayTeam} not found").withStatus(Status.Ok)
   }
+
   def latestGameResponse(game: Option[Game]): Response = {
     println(game)
     game match
@@ -172,12 +183,17 @@ object DataService {
     )
   }
 
-   val count: ZIO[ZConnectionPool, Throwable, Option[Int]] = transaction {
+  val count: ZIO[ZConnectionPool, Throwable, Option[Int]] = transaction {
     selectOne(
       sql"SELECT COUNT(*) FROM games".as[Int]
     )
   }
 
+  val list: ZIO[ZConnectionPool, Throwable, List[Game]] = transaction {
+    selectAll(
+      sql"SELECT * FROM games LIMIT 10".as[Game]
+    ).map(_.toList)
+  }
   def getProbHome(homeTeam: HomeTeam, awayTeam: AwayTeam): ZIO[ZConnectionPool, Throwable, Option[Double]] = {
     transaction {
       selectOne(
