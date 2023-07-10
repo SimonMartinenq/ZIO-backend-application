@@ -39,16 +39,26 @@ object MlbApi extends ZIOAppDefault {
         res: Response = countResponse(count)
     } yield res
 
-    //case Method.GET -> Root / "games" => ???
+    /*case Method.GET -> Root / "games" =>
+      for {
+        list: Option[List[Game]] <- list
+        res: Response = listResponse(list)
+      } yield res*/
 
-    // case Method.GET -> Root / "predict" / "game" / gameId => ???
+    case Method.GET -> Root / "game" / "predict" / homeTeam / awayTeam =>
+      for {
+        predHome: Option[Double] <- getProbHome(HomeTeam(homeTeam), AwayTeam(awayTeam))
+        predAway: Option[Double] <- getProbAway(HomeTeam(homeTeam), AwayTeam(awayTeam))
+        res: Response = predictResponse(homeTeam, predHome, awayTeam, predAway)
+      } yield res
+
      case _ =>
       ZIO.succeed(Response.text("Not Found").withStatus(Status.NotFound))
   }.withDefaultErrorResponse
 
   val app: ZIO[ZConnectionPool & Server, Throwable, Unit] = for {
     conn <- create
-    //WHEN RUN METHOD USE THIS PATH: 
+    //WHEN RUN METHOD USE THIS PATH:
     //source <- ZIO.succeed(CSVReader.open(("rest\\src\\CsvFiles\\mlb_elo.csv")))
     //WHEN USING SBT USE THIS PATH:
     source <- ZIO.succeed(CSVReader.open(("src\\CsvFiles\\mlb_elo.csv")))
@@ -90,6 +100,14 @@ object ApiService {
       case Some(c) => Response.text(s"$c game(s) in historical data").withStatus(Status.Ok)
       case None => Response.text("No game in historical data").withStatus(Status.NotFound)
   }
+
+  def predictResponse(homeTeam: String, predHome: Option[Double], awayTeam: String, predAway: Option[Double]): Response = {
+    (predHome, predAway) match
+      case (Some(d), Some(a)) => Response.text(s"Prediction for ${homeTeam} is $d \nPrediction for ${awayTeam} is $a").withStatus(Status.Ok)
+      case (None, Some(a)) => Response.text(s"Prediction for ${homeTeam} not found \nPrediction for ${awayTeam} is $a").withStatus(Status.Ok)
+      case (Some(d), None) => Response.text(s"Prediction for ${homeTeam} is $d \nPrediction for ${awayTeam} not found").withStatus(Status.Ok)
+      case (None, None) => Response.text(s"Prediction for ${homeTeam} not found \nPrediction for ${awayTeam} not found").withStatus(Status.Ok)
+  }
 }
 
 
@@ -119,7 +137,7 @@ object DataService {
         homeTeam VARCHAR(3) NOT NULL,
         awayTeam VARCHAR(3) NOT NULL,
         homeScore INT,
-        awayScore INT, 
+        awayScore INT,
         eloProbHome DOUBLE NOT NULL,
         eloProbAway DOUBLE NOT NULL
       )"""
@@ -146,5 +164,21 @@ object DataService {
     selectOne(
       sql"SELECT COUNT(*) FROM games".as[Int]
     )
+  }
+
+  def getProbHome(homeTeam: HomeTeam, awayTeam: AwayTeam): ZIO[ZConnectionPool, Throwable, Option[Double]] = {
+    transaction {
+      selectOne(
+        sql"SELECT eloProbHome FROM games WHERE homeTeam = ${HomeTeam.unapply(homeTeam)} AND awayTeam = ${AwayTeam.unapply(awayTeam)} ORDER BY date DESC LIMIT 1".as[Double]
+      )
+    }
+  }
+
+  def getProbAway(homeTeam: HomeTeam, awayTeam: AwayTeam): ZIO[ZConnectionPool, Throwable, Option[Double]] = {
+    transaction {
+      selectOne(
+        sql"SELECT eloProbAway FROM games WHERE homeTeam = ${HomeTeam.unapply(homeTeam)} AND awayTeam = ${AwayTeam.unapply(awayTeam)} ORDER BY date DESC LIMIT 1".as[Double]
+      )
+    }
   }
 }
