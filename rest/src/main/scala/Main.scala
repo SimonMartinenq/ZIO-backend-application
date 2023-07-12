@@ -31,23 +31,20 @@ object MlbApi extends ZIOAppDefault {
   val endpoints: App[ZConnectionPool] = Http.collectZIO[Request] {
 
     case Method.GET -> Root / "init" => 
-      ZIO.succeed(Response.text("Not Implemented").withStatus(Status.NotImplemented))
+      ZIO.succeed(Response.text("Our API is initialized").withStatus(Status.NotImplemented))
 
+    case Method.GET -> Root / "games" =>
+      for {
+        list: List[Game] <- list
+        res: Response = listResponse(list)
+      } yield res
+    
     case Method.GET -> Root / "games" / "count" =>
       for {
         count: Option[Int] <- count
         res: Response = countResponse(count)
     } yield res
-
-    /*case Method.GET -> Root / "games" =>
-      for {
-        list: Option[List[Game]] <- list
-        res: Response = listResponse(list)
-      } yield res*/
-
-
-    // case Method.GET -> Root / "predict" / "game" / TeamName => ???
-
+    
     case Method.GET -> Root / "games" / teamName  =>
       for {
         games: List[Game] <- lastTwentyGames(HomeTeam(teamName), AwayTeam(teamName))
@@ -111,6 +108,15 @@ object ApiService {
 
   import zio.json.EncoderOps
   import Game._
+
+  def listResponse(list: List[Game]): Response = {
+    Response.text("Entered").withStatus(Status.Ok)
+    list match {
+      case Nil => Response.text("List is empty").withStatus(Status.NotFound)
+      case _ =>
+        Response.text(s"${list.mkString("\n")}").withStatus(Status.Ok)
+    }
+  }
 
   def countResponse(count: Option[Int]): Response = {
     count match
@@ -188,11 +194,27 @@ object DataService {
         .as[Game]
     )
   }
+  
+  def list: ZIO[ZConnectionPool, Throwable, List[Game]] = {
+    transaction{
+      selectAll(
+        sql"SELECT * FROM games LIMIT 10".as[Game]
+      ).map(_.toList)
+    }
+  }
 
    val count: ZIO[ZConnectionPool, Throwable, Option[Int]] = transaction {
     selectOne(
       sql"SELECT COUNT(*) FROM games".as[Int]
     )
+  }
+  
+  def lastTwentyGames(homeTeam: HomeTeam, awayTeam: AwayTeam): ZIO[ZConnectionPool, Throwable, List[Game]] = {
+    transaction {
+      selectAll(
+        sql"SELECT date, season, homeTeam, awayTeam, homeScore, awayScore, eloProbHome, eloProbAway FROM games WHERE homeTeam = ${HomeTeam.unapply(homeTeam)} OR awayTeam = ${AwayTeam.unapply(awayTeam)} ORDER BY date DESC LIMIT 20".as[Game]
+      ).map(_.toList)
+    }
   }
 
   def getProbHome(homeTeam: HomeTeam, awayTeam: AwayTeam): ZIO[ZConnectionPool, Throwable, Option[Double]] = {
@@ -216,14 +238,6 @@ object DataService {
       selectOne(
         sql"SELECT date, season, homeTeam, awayTeam, homeScore, awayScore, eloProbHome, eloProbAway FROM games WHERE homeTeam = ${HomeTeam.unapply(homeTeam)} AND awayTeam = ${AwayTeam.unapply(awayTeam)} ORDER BY date DESC LIMIT 1".as[Game]
       )
-    }
-  }
-
-  def lastTwentyGames(homeTeam: HomeTeam, awayTeam: AwayTeam): ZIO[ZConnectionPool, Throwable, List[Game]] = {
-    transaction {
-      selectAll(
-        sql"SELECT date, season, homeTeam, awayTeam, homeScore, awayScore, eloProbHome, eloProbAway FROM games WHERE homeTeam = ${HomeTeam.unapply(homeTeam)} OR awayTeam = ${AwayTeam.unapply(awayTeam)} ORDER BY date DESC LIMIT 20".as[Game]
-      ).map(_.toList)
     }
   }
 }
